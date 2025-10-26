@@ -19,15 +19,17 @@ export default function MenuPage() {
     menuAvailable: true,
   });
 
+  // State สำหรับการแก้ไข
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null); // เก็บเมนูที่กำลังแก้ไข
+
   const API_URL = "http://localhost:3000/api/menu";
 
-  //Retrieve ดึงข้อมูล
+  // 1. Retrieve ดึงข้อมูล
   const fetchMenu = async () => {
     try {
       setLoading(true);
       const res = await fetch(API_URL);
       const data = await res.json();
-      //data มาเก็บใน menuItems
       setMenuItems(data);
     } catch (err: any) {
       setError(err.message);
@@ -40,9 +42,13 @@ export default function MenuPage() {
     fetchMenu();
   }, []);
 
-  //Insert
+  // 2. Insert (เพิ่มข้อมูล)
   const addMenu = async () => {
     try {
+      if (!newMenu.menuName || newMenu.menuPrice <= 0 || !newMenu.menuCategory) {
+        alert("กรุณากรอกข้อมูลให้ครบถ้วนและราคาต้องมากกว่า 0");
+        return;
+      }
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -56,30 +62,63 @@ export default function MenuPage() {
     }
   };
 
+  // 3. Delete (ลบข้อมูล)
   const deleteMenu = async (id: string) => {
     if (!confirm("คุณต้องการลบเมนูนี้ใช่หรือไม่?")) return;
     try {
       await fetch(`${API_URL}/${id}`, { method: "DELETE" });
-      //ส่งคำขอลบไปยัง API เพื่อลบข้อมูลในฐานข้อมูล
       setMenuItems(menuItems.filter(item => item.id !== id));
-      //ลบออกจาก state ด้วย filter
     } catch (err: any) {
       setError(err.message);
     }
   };
 
+  // 4. Update (สลับสถานะ) - ใช้ API PUT
   const toggleAvailable = async (id: string, current: boolean) => {
     try {
       await fetch(`${API_URL}/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ menuAvailable: !current }),
+        body: JSON.stringify({ menuAvailable: !current }), // ส่งเฉพาะฟิลด์ที่ต้องการอัปเดต
       });
       setMenuItems(menuItems.map(item => item.id === id ? { ...item, menuAvailable: !current } : item));
     } catch (err: any) {
       setError(err.message);
     }
   };
+
+  // 5. Full Update (ฟังก์ชันแก้ไขเต็มรูปแบบ) - ใช้ API PUT
+  const updateMenu = async () => {
+    if (!editingItem) return;
+
+    try {
+      // ตรวจสอบความถูกต้องของข้อมูลก่อนส่ง
+      if (!editingItem.menuName || editingItem.menuPrice <= 0 || !editingItem.menuCategory) {
+        alert("กรุณากรอกข้อมูลให้ครบถ้วนและราคาต้องมากกว่า 0");
+        return;
+      }
+      
+      const res = await fetch(`${API_URL}/${editingItem.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        // ส่งข้อมูลทั้งหมดของเมนูที่แก้ไข
+        body: JSON.stringify(editingItem),
+      });
+
+      if (!res.ok) throw new Error("การอัปเดตล้มเหลว");
+
+      // อัปเดต State ใน Frontend
+      setMenuItems(menuItems.map(item => 
+        item.id === editingItem.id ? editingItem : item
+      ));
+
+      // ปิดโหมดแก้ไข
+      setEditingItem(null); 
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
 
   if (loading) return <div className="text-center mt-20">กำลังโหลด...</div>;
   if (error) return <div className="text-center text-red-500 mt-20">Error: {error}</div>;
@@ -89,32 +128,35 @@ export default function MenuPage() {
       <h1 className="text-3xl font-bold text-center mb-6">เมนูร้านกาแฟ</h1>
 
       {/* Form เพิ่มเมนู */}
-      <div className="flex flex-wrap gap-3 mb-6">
-        <input
-          className="border rounded p-2 flex-1"
-          placeholder="ชื่อเมนู"
-          value={newMenu.menuName}
-          onChange={e => setNewMenu({ ...newMenu, menuName: e.target.value })}
-        />
-        <input
-          className="border rounded p-2 w-32"
-          type="number"
-          placeholder="ราคา"
-          value={newMenu.menuPrice}
-          onChange={e => setNewMenu({ ...newMenu, menuPrice: Number(e.target.value) })}
-        />
-        <input
-          className="border rounded p-2 w-32"
-          placeholder="ประเภท"
-          value={newMenu.menuCategory}
-          onChange={e => setNewMenu({ ...newMenu, menuCategory: e.target.value })}
-        />
-        <button
-          onClick={addMenu}
-          className="bg-green-500 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded"
-        >
-          เพิ่มเมนู
-        </button>
+      <div className="bg-gray-100 p-4 rounded-lg mb-6">
+        <h2 className="text-xl font-semibold mb-3 text-black">เพิ่มเมนูใหม่</h2>
+        <div className="flex flex-wrap gap-3">
+          <input
+            className="border rounded p-2 flex-1 text-black"
+            placeholder="ชื่อเมนู"
+            value={newMenu.menuName}
+            onChange={e => setNewMenu({ ...newMenu, menuName: e.target.value })}
+          />
+          <input
+            className="border rounded p-2 w-32 text-black"
+            type="number"
+            placeholder="ราคา"
+            value={newMenu.menuPrice}
+            onChange={e => setNewMenu({ ...newMenu, menuPrice: Number(e.target.value) })}
+          />
+          <input
+            className="border rounded p-2 w-32 text-black"
+            placeholder="ประเภท"
+            value={newMenu.menuCategory}
+            onChange={e => setNewMenu({ ...newMenu, menuCategory: e.target.value })}
+          />
+          <button
+            onClick={addMenu}
+            className="bg-green-500 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded transition duration-200"
+          >
+            เพิ่มเมนู
+          </button>
+        </div>
       </div>
 
       {/* ตารางเมนู */}
@@ -151,16 +193,22 @@ export default function MenuPage() {
                       {item.menuAvailable ? "พร้อมขาย" : "หมด"}
                     </span>
                   </td>
-                  <td className="px-6 py-3 space-x-2">
+                  <td className="px-6 py-3 space-x-2 whitespace-nowrap">
                     <button
                       onClick={() => toggleAvailable(item.id, item.menuAvailable)}
-                      className="bg-yellow-400 hover:bg-yellow-600 text-white px-3 py-1 rounded"
+                      className="bg-yellow-400 hover:bg-yellow-600 text-white px-3 py-1 rounded transition duration-200"
                     >
                       สลับสถานะ
                     </button>
                     <button
+                      onClick={() => setEditingItem(item)} // แก้ไข
+                      className="bg-blue-500 hover:bg-blue-700 text-white px-3 py-1 rounded transition duration-200"
+                    >
+                      แก้ไข
+                    </button>
+                    <button
                       onClick={() => deleteMenu(item.id)}
-                      className="bg-red-500 hover:bg-red-700 text-white px-3 py-1 rounded"
+                      className="bg-red-500 hover:bg-red-700 text-white px-3 py-1 rounded transition duration-200"
                     >
                       ลบ
                     </button>
@@ -170,8 +218,66 @@ export default function MenuPage() {
             )}
           </tbody>
         </table>
-        
       </div>
+
+      {editingItem && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+            <h2 className="text-2xl font-bold mb-4 text-black">แก้ไขเมนู: {editingItem.menuName}</h2>
+            <div className="space-y-4">
+              <label className="block">
+                <span className="text-gray-700">ชื่อเมนู</span>
+                <input
+                  className="mt-1 block w-full border rounded p-2 text-black"
+                  value={editingItem.menuName}
+                  onChange={e => setEditingItem({ ...editingItem, menuName: e.target.value })}
+                />
+              </label>
+              <label className="block">
+                <span className="text-gray-700">ราคา</span>
+                <input
+                  className="mt-1 block w-full border rounded p-2 text-black"
+                  type="number"
+                  value={editingItem.menuPrice}
+                  onChange={e => setEditingItem({ ...editingItem, menuPrice: Number(e.target.value) })}
+                />
+              </label>
+              <label className="block">
+                <span className="text-gray-700">ประเภท</span>
+                <input
+                  className="mt-1 block w-full border rounded p-2 text-black"
+                  value={editingItem.menuCategory}
+                  onChange={e => setEditingItem({ ...editingItem, menuCategory: e.target.value })}
+                />
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={editingItem.menuAvailable}
+                  onChange={e => setEditingItem({ ...editingItem, menuAvailable: e.target.checked })}
+                  className="form-checkbox h-5 w-5 text-blue-600"
+                />
+                <span className="text-gray-700">พร้อมขาย</span>
+              </label>
+            </div>
+            
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                onClick={() => setEditingItem(null)}
+                className="bg-gray-300 hover:bg-gray-400 text-black font-semibold px-4 py-2 rounded transition duration-200"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={updateMenu}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded transition duration-200"
+              >
+                บันทึกการแก้ไข
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
