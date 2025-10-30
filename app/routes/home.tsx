@@ -20,18 +20,17 @@ export default function MenuPage() {
   });
 
   // State สำหรับการแก้ไข
-  const [editingItem, setEditingItem] = useState<MenuItem | null>(null); // เก็บเมนูที่กำลังแก้ไข
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
 
-  const API_URL = "http://localhost:3000/api/menu";
-
-  // 1. Retrieve ดึงข้อมูล
+  // ✅ โหลดข้อมูลเมนูทั้งหมด
   const fetchMenu = async () => {
     try {
-      setLoading(true);
-      const res = await fetch(API_URL);
+      const res = await fetch(`http://localhost:3000/api/menu`);
+      if (!res.ok) throw new Error(`โหลดข้อมูลล้มเหลว: ${res.status}`);
       const data = await res.json();
       setMenuItems(data);
     } catch (err: any) {
+      console.error(err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -42,14 +41,14 @@ export default function MenuPage() {
     fetchMenu();
   }, []);
 
-  // 2. Insert (เพิ่มข้อมูล)
+  // ✅ เพิ่มเมนูใหม่
   const addMenu = async () => {
     try {
       if (!newMenu.menuName || newMenu.menuPrice <= 0 || !newMenu.menuCategory) {
         alert("กรุณากรอกข้อมูลให้ครบถ้วนและราคาต้องมากกว่า 0");
         return;
       }
-      const res = await fetch(API_URL, {
+      const res = await fetch(`http://localhost:3000/api/menu`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newMenu),
@@ -62,24 +61,24 @@ export default function MenuPage() {
     }
   };
 
-  // 3. Delete (ลบข้อมูล)
+  // ✅ ลบเมนู
   const deleteMenu = async (id: string) => {
     if (!confirm("คุณต้องการลบเมนูนี้ใช่หรือไม่?")) return;
     try {
-      await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+      await fetch(`http://localhost:3000/api/menu/${id}`, { method: "DELETE" });
       setMenuItems(menuItems.filter(item => item.id !== id));
     } catch (err: any) {
       setError(err.message);
     }
   };
 
-  // 4. Update (สลับสถานะ) - ใช้ API PUT
+  // ✅ สลับสถานะเมนู (พร้อมขาย/หมด)
   const toggleAvailable = async (id: string, current: boolean) => {
     try {
-      await fetch(`${API_URL}/${id}`, {
+      await fetch(`http://localhost:3000/api/menu/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ menuAvailable: !current }), // ส่งเฉพาะฟิลด์ที่ต้องการอัปเดต
+        body: JSON.stringify({ menuAvailable: !current }),
       });
       setMenuItems(menuItems.map(item => item.id === id ? { ...item, menuAvailable: !current } : item));
     } catch (err: any) {
@@ -87,39 +86,34 @@ export default function MenuPage() {
     }
   };
 
-  // 5. Full Update (ฟังก์ชันแก้ไขเต็มรูปแบบ) - ใช้ API PUT
+  // ✅ ฟังก์ชันแก้ไขข้อมูลเมนู (Full Update)
   const updateMenu = async () => {
     if (!editingItem) return;
 
     try {
-      // ตรวจสอบความถูกต้องของข้อมูลก่อนส่ง
       if (!editingItem.menuName || editingItem.menuPrice <= 0 || !editingItem.menuCategory) {
         alert("กรุณากรอกข้อมูลให้ครบถ้วนและราคาต้องมากกว่า 0");
         return;
       }
-      
-      const res = await fetch(`${API_URL}/${editingItem.id}`, {
+
+      const res = await fetch(`http://localhost:3000/api/menu/${editingItem.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        // ส่งข้อมูลทั้งหมดของเมนูที่แก้ไข
         body: JSON.stringify(editingItem),
       });
 
       if (!res.ok) throw new Error("การอัปเดตล้มเหลว");
 
-      // อัปเดต State ใน Frontend
-      setMenuItems(menuItems.map(item => 
+      setMenuItems(menuItems.map(item =>
         item.id === editingItem.id ? editingItem : item
       ));
-
-      // ปิดโหมดแก้ไข
-      setEditingItem(null); 
+      setEditingItem(null);
     } catch (err: any) {
       setError(err.message);
     }
   };
 
-
+  // ✅ แสดงผลหน้าเว็บ
   if (loading) return <div className="text-center mt-20">กำลังโหลด...</div>;
   if (error) return <div className="text-center text-red-500 mt-20">Error: {error}</div>;
 
@@ -127,7 +121,7 @@ export default function MenuPage() {
     <div className="max-w-5xl mx-auto p-6">
       <h1 className="text-3xl font-bold text-center mb-6">เมนูร้านกาแฟ</h1>
 
-      {/* Form เพิ่มเมนู */}
+      {/* ฟอร์มเพิ่มเมนู */}
       <div className="bg-gray-100 p-4 rounded-lg mb-6">
         <h2 className="text-xl font-semibold mb-3 text-black">เพิ่มเมนูใหม่</h2>
         <div className="flex flex-wrap gap-3">
@@ -201,7 +195,7 @@ export default function MenuPage() {
                       สลับสถานะ
                     </button>
                     <button
-                      onClick={() => setEditingItem(item)} // แก้ไข
+                      onClick={() => setEditingItem(item)}
                       className="bg-blue-500 hover:bg-blue-700 text-white px-3 py-1 rounded transition duration-200"
                     >
                       แก้ไข
@@ -220,6 +214,7 @@ export default function MenuPage() {
         </table>
       </div>
 
+      {/* Modal แก้ไขเมนู */}
       {editingItem && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">

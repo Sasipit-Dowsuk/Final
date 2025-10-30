@@ -2,7 +2,7 @@ import express from 'express'; //สร้าง web server
 import cors from 'cors'; //อนุญาตให้ React frontend เรียก API นี้ข้ามโดเมนได้
 
 import admin from 'firebase-admin'; 
-import serviceAccount from './firebase/final-29d3a-firebase-adminsdk-fbsvc-dbca0dbc97.json' with { type: "json" };
+import serviceAccount from './firebase/final-29d3a-firebase-adminsdk-fbsvc-ef23cb5ef5.json' with { type: "json" };
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
